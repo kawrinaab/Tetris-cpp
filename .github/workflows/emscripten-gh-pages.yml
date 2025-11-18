@@ -1,0 +1,73 @@
+name: Build & Deploy Raylib WASM to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Emscripten + Build Raylib + Build Game (single shell)
+        run: |
+          set -euo pipefail
+
+          ### 1) Install EMSDK
+          git clone https://github.com/emscripten-core/emsdk.git emsdk
+          cd emsdk
+          ./emsdk install latest
+          ./emsdk activate latest
+          source ./emsdk_env.sh
+
+          echo "EMCC Version:"
+          emcc -v
+
+          ### 2) Build Raylib for Web
+          cd $GITHUB_WORKSPACE
+          git clone https://github.com/raysan5/raylib.git raylib
+          cd raylib/src
+          emmake make PLATFORM=PLATFORM_WEB
+
+          ### 3) Copy generated libraylib*.a
+          cd $GITHUB_WORKSPACE
+          mkdir -p raylib_build
+          RLIB=$(find raylib/src -maxdepth 1 -type f -name "libraylib*.a" | head -n 1)
+          cp "$RLIB" raylib_build/libraylib.a
+
+          ### 4) Build game using explicit source list (safer than wildcard)
+          mkdir -p out
+
+          emcc \
+            src/main.cpp \
+            src/game.cpp \
+            src/grid.cpp \
+            src/block.cpp \
+            src/blocks.cpp \
+            src/colors.cpp \
+            src/position.cpp \
+            -O3 -std=c++17 \
+            -Iraylib/src \
+            -Lraylib_build -lraylib \
+            -s USE_GLFW=3 \
+            -s ASYNCIFY \
+            -s ALLOW_MEMORY_GROWTH=1 \
+            --preload-file Font@/Font \
+            --preload-file Sounds@/Sounds \
+            -DPLATFORM_WEB \
+            -o out/index.html
+
+          ### 5) Create .nojekyll WITH CONTENT
+          echo "# Prevent GitHub Jekyll from ignoring wasm/data files" > out/.nojekyll
+
+          echo "Build Completed. out/ contains:"
+          ls -la out
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          publish_dir: ./out
+          github_token: ${{ secrets.GITHUB_TOKEN }}
