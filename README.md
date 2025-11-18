@@ -25,8 +25,31 @@ This project focuses on using a **2D array** as the primary data structure to re
 
 ---
 
-## 🧩 Data Structure Used
 
-### **Game Grid → 2D Array**
-```cpp
-int grid[20][10];
+## Time Complexity
+1. Grid Initialization
+
+Loops over all 20×10 cells
+→ O(R × C) → O(200) → O(1)
+
+2. Drawing the Grid
+
+Executed every frame
+→ O(R × C) → O(1)
+
+3. Checking if a Row Is Full
+
+Loops over 10 columns
+→ O(C) → O(1)
+
+4. Clearing Full Rows
+
+Worst-case: clear all 20 rows
+→ O(R × C) → O(1) (grid size fixed)
+
+5. Collision Detection
+
+Direct access to array index
+→ O(1)
+
+
